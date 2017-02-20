@@ -1,0 +1,9 @@
+# python compile files
+*.pyc
+.idea/
+
+# database file
+*.sqlite
+
+# venvirtual interpreter
+venv/
