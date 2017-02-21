@@ -24,9 +24,9 @@ class DateOpt(object):
         """
         conn = sqlite3.connect('occupy_desk.sqlite')
         cursor = conn.cursor()
-        cursor.execute('''CREATE TABLE IF NOT EXISTS desk(id INTEGER PRIMARY KEY, name TEXT)''')
+        cursor.execute('''CREATE TABLE IF NOT EXISTS desk(id INTEGER PRIMARY KEY, name TEXT UNIQUE )''')
 
-        cursor.execute('''CREATE TABLE IF NOT EXISTS student(id INTEGER PRIMARY KEY, name TEXT, card_id INTEGER)''')
+        cursor.execute('''CREATE TABLE IF NOT EXISTS student(id INTEGER PRIMARY KEY, name TEXT, card_id INTEGER UNIQUE )''')
 
         cursor.execute('''CREATE TABLE IF NOT EXISTS occupy(id INTEGER PRIMARY KEY, desk_id INTEGER, student_id INTEGER, start_time
                         DATETIME, end_time DATETIME, real_start_time DATETIME, real_end_time DATETIME, current_d DATE,
@@ -41,14 +41,16 @@ class DateOpt(object):
         :param name: 课桌名
         :return: 课桌id
         """
-        self.cursor.execute('SELECT id FROM desk WHERE name={}}'.format(name))
+        self.cursor.execute('SELECT id FROM desk WHERE name=?;', (name,))
         res = self.cursor.fetchone()
         if not res:
             self.insert_into_desk(name)
             self.conn.commit()
-            self.select_id_from_desk(name)
+            self.cursor.close()
+            self.conn.close()
+            return False
         else:
-            return res
+            return res[0]
 
     def insert_into_desk(self, name):
         """
@@ -56,7 +58,11 @@ class DateOpt(object):
         :param name: 课桌名
         :return:
         """
-        self.cursor.execute('INSERT INTO desk (name) VALUES ({})'.format(name))
+        try:
+            self.cursor.execute('INSERT INTO desk(name) VALUES (?);', (name,))
+        except sqlite3.IntegrityError:
+            return False
+        self.conn.commit()
         return True
 
     def select_id_from_student(self, name, card_id):
@@ -66,14 +72,16 @@ class DateOpt(object):
         :param card_id: 学生学号
         :return: 学生编号
         """
-        self.cursor.execute('SELECT id FROM student WHERE card_id={}'.format(card_id))
+        self.cursor.execute('SELECT id FROM student WHERE card_id=?;', (card_id,))
         res = self.cursor.fetchone()
         if not res:
             self.insert_into_student(name, card_id)
             self.conn.commit()
-            self.select_id_from_student(name, card_id)
+            self.cursor.close()
+            self.conn.close()
+            return False
         else:
-            return res
+            return res[0]
 
     def insert_into_student(self, name, card_id):
         """
@@ -82,7 +90,7 @@ class DateOpt(object):
         :param card_id: 学生学号
         :return:
         """
-        self.cursor.execute('INSERT INTO student (name, card_id) VALUES ({}, {}})'.format(name, card_id))
+        self.cursor.execute('INSERT INTO student (name, card_id) VALUES (?, ?);', (name, card_id))
         self.conn.commit()
         return True
 
@@ -95,10 +103,10 @@ class DateOpt(object):
         :param end_time: 占座结束时间
         :return:
         """
-        self.cursor.execute('''INSERT INTO occupy (desk_id, student_id, start_time, end_time, read_start_time, \
-                real_end_time, current_d) VALUES ({}, {}, {}, {}, {}, {}, {}})'''.format(
+        self.cursor.execute('''INSERT INTO occupy (desk_id, student_id, start_time, end_time, real_start_time, \
+                real_end_time, current_d) VALUES (?,?,?,?,?,?,?);''', (
             desk_id, student_id, start_time, end_time, datetime.now().strftime('%H:%M'), datetime.now().strftime("%H:%M"),\
-            datetime.now().strftime("%d")
+            datetime.now().strftime("%Y:%m:%d")
         ))
         self.conn.commit()
 
@@ -112,13 +120,13 @@ class DateOpt(object):
         :return:
         """
         self.cursor.execute('''
-              select real_end_time from occupy where desk_id = {} and student_id = {} and start_time={} and current_d = {}
-              '''.format(desk_id, student_id, start_time, datetime.now().strftime('%d')))
+              select real_end_time from occupy where desk_id = ? and student_id = ? and start_time=? and current_d = ?
+              ;''', (desk_id, student_id, start_time, datetime.now().strftime('%Y:%m:%d')))
         res = self.cursor.fetchone()
-        if res and res < datetime.now().strftime('%H:%M'):
+        if res and res[0] < datetime.now().strftime('%H:%M'):
             self.cursor.execute('''
-              update occupy set real_end_time = {} where desk_id = {} and student_id = {} and start_time={} and current_d = {}
-              '''.format(datetime.now().strftime('%H:%M'), desk_id, student_id, start_time, datetime.now().strftime('%d')))
+              update occupy set real_end_time = ? where desk_id = ? and student_id = ? and start_time=? and current_d = ?
+              ;''', (datetime.now().strftime('%H:%M'), desk_id, student_id, start_time, datetime.now().strftime('%Y:%m:%d')))
             self.conn.commit()
         else:
             self.insert_into_occupy(desk_id, student_id, start_time, end_time)
