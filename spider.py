@@ -51,6 +51,6 @@ for item in res['data']:
                 student_id = DateOpt().select_id_from_student(student_name, student_card_id)
                 if not student_id:
                     student_id = DateOpt().select_id_from_student(student_name, student_card_id)
-                print(desk_id, student_id)
+                # print(desk_id, student_id)
                 DateOpt().update_occupy(desk_id, student_id, start, end)
                 # DateOpt().insert_into_student(item2['owner'], item2['accno'])
