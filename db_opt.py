@@ -9,11 +9,14 @@
 """
 import sqlite3
 from datetime import datetime
+import os
+
+basedir = os.path.abspath(os.path.dirname(__name__))
 
 
 class DateOpt(object):
     def __init__(self):
-        self.conn = sqlite3.connect('occupy_desk.sqlite')
+        self.conn = sqlite3.connect(os.path.join(basedir, 'occupy_desk.sqlite'))
         self.cursor = self.conn.cursor()
 
     @staticmethod
